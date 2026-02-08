@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商家版 - 健康证管理（最终完整版）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@1.8.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:"Noto Sans SC",sans-serif;}
+:root{
+  --c1:#1677ff;--c2:#36d399;--c4:#f53f3f;
+  --bg:#f5f5f5;--card:#fff;--bd:#e5eeb;
+  --shadow:0 4px 20px rgba(0,0,0,.06);
+}
+body{background:var(--bg);color:#1d1d1d;line-height:1.6;}
+.container{width:100%;max-width:1200px;margin:0 auto;padding:0 12px;}
+.btn{padding:10px 14px;border-radius:8px;border:0;cursor:pointer;transition:.2s;font-size:14px;}
+.btn-primary{background:var(--c1);color:#fff;box-shadow:0 2px 8px rgba(22,119,255,.2);}
+.btn-success{background:var(--c2);color:#fff;}
+.section{padding:12px 0;}
+.section-title{font-size:18px;margin-bottom:12px;font-weight:600;}
+.card{background:var(--card);border-radius:12px;padding:16px;box-shadow:var(--shadow);}
+.label{font-size:13px;color:#4e4e4e;margin-bottom:6px;}
+.form-item{margin-bottom:10px;}
+input,select,textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;}
+.tag{padding:3px 6px;border-radius:4px;font-size:12px;}
+.tag-success{background:#e8fff3;color:#129966;}
+.tag-wait{background:#fff7e8;color:#b99000;}
+.tag-expire{background:#ffe8e8;color:#cc3333;}
+.grid{display:grid;gap:12px;}
+.grid-2{grid-template-columns:repeat(2,1fr);}
+table{width:100%;border-collapse:collapse;font-size:14px;}
+th,td{padding:10px;text-align:left;border-bottom:1px solid #eee;}
+thead tr{background:#f8f9fa;}
+
+/* 健康证卡片 */
+.cert-card{
+  width:90%;max-width:420px;min-height:280px;
+  background:#fff;border:1px solid #ddd;border-radius:20px;
+  padding:20px;position:relative;margin:20px auto;
+  font-size:14px;box-shadow:0 4px 15px rgba(0,0,0,.1);
+  box-sizing:border-box;overflow:hidden;
+}
+.cert-title{text-align:center;font-weight:700;font-size:18px;margin-bottom:16px;}
+.cert-grid{display:grid;grid-template-columns:80px 1fr;gap:10px 12px;font-size:14px;align-items:center;}
+.cert-grid div:nth-child(odd){text-align:right;font-weight:500;}
+.cert-photo{position:absolute;right:20px;top:20px;width:80px;height:100px;object-fit:cover;border-radius:8px;}
+.cert-qr{position:absolute;right:20px;bottom:20px;width:80px;height:80px;border-radius:8px;}
+
+/* 公章样式：圆形环绕文字 + 五角星 */
+.cert-stamp{
+  position:absolute;left:50%;top:55%;transform:translate(-50%,-50%);
+  width:80px;height:80px;min-width:50px;min-height:50px;max-width:150px;max-height:150px;
+  border:2px solid #c0392b;border-radius:50%;
+  background:rgba(255,255,255,0.95);
+  resize:both;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+}
+.stamp-inner{
+  position:relative;width:92%;height:92%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#c0392b;font-weight:700;text-align:center;
+}
+.stamp-top{
+  position:absolute;top:8%;left:50%;transform:translateX(-50%);
+  width:100%;font-size:9px;letter-spacing:1px;
+  display:flex;justify-content:center;align-items:center;
+  white-space:nowrap;overflow:hidden;
+}
+.stamp-star{
+  font-size:18px;color:#c0392b;margin:6px 0 4px 0;
+}
+.stamp-middle{
+  font-size:9px;line-height:1.2;
+}
+.stamp-bottom{
+  font-size:9px;line-height:1.2;margin-top:2px;
+}
+
+/* 二维码盒子 */
+.qr-box{width:260px;height:260px;margin:10px auto;border:1px solid #eee;display:flex;align-items:center;justify-content:center;}
+.qr-actions{text-align:center;margin-top:8px;}
+
+/* 体检报告中间可调节上传框 */
+.report-upload-area{
+  width:320px;height:220px;margin:20px auto;
+  border:2px dashed #999;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;
+  background:#f9f9f9;resize:both;overflow:auto;padding:10px;
+}
+.report-upload-area input{margin-bottom:10px;}
+.report-upload-area img{max-width:100%;max-height:160px;object-fit:contain;border-radius:6px;}
+
+/* 体检报告二维码转换器 */
+.report-qr-gen{
+  width:320px;margin:20px auto;text-align:center;
+}
+.report-qr-gen input{margin-bottom:10px;}
+.report-qr-gen img{max-width:200px;margin-top:10px;border:1px solid #ddd;border-radius:8px;}
+
+/* 打印样式 */
+@media print{
+  body{background:#fff;}
+  .no-print{display:none!important;}
+  .cert-card{page-break-after:always;border:none;box-shadow:none;}
+  .cert-stamp{resize:none;}
+}
+
+/* 功能区独立 + 自适应 */
+.page{display:none;}
+.page.active{display:block;}
+.tab-bar{display:flex;gap:8px;background:#fff;padding:10px;border-radius:12px;margin-bottom:12px;flex-wrap:wrap;}
+.tab-btn{padding:8px 12px;border-radius:8px;border:0;background:#f5f5f5;cursor:pointer;flex:1;min-width:100px;text-align:center;}
+.tab-btn.active{background:var(--c1);color:#fff;}
+
+@media(max-width:768px){
+  .grid-2{grid-template-columns:1fr;}
+  .tab-btn{min-width:80px;font-size:12px;padding:6px 8px;}
+  .cert-card{width:95%;padding:16px;}
+  .cert-photo{width:70px;height:85px;}
+  .cert-qr{width:70px;height:70px;}
+  .report-upload-area{width:90%;height:180px;}
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- 顶部标签栏 -->
+  <div class="tab-bar no-print">
+    <button class="tab-btn active" onclick="switchPage('page1')">员工管理</button>
+    <button class="tab-btn" onclick="switchPage('page2')">健康证卡片</button>
+    <button class="tab-btn" onclick="switchPage('page3')">体检报告</button>
+    <button class="tab-btn" onclick="switchPage('page4')">二维码生成器</button>
+  </div>
+
+  <!-- ====================== 功能区1：员工管理 ====================== -->
+  <div id="page1" class="page active">
+    <div class="card">
+      <div class="section-title">👥 员工管理</div>
+      <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="openStaff()">新增员工</button>
+        <button class="btn btn-success" onclick="exportStaff()">导出Excel</button>
+        <button class="btn btn-outline" onclick="importStaff()">导入Excel</button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>姓名</th><th>性别</th><th>岁数</th><th>身份证号</th><th>类别</th><th>体检编码</th><th>状态</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="staffTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== 功能区2：健康证卡片（公章可选择） ====================== -->
+  <div id="page2" class="page">
+    <div class="card no-print">
+      <div class="section-title">🪪 健康证卡片</div>
+      
+      <!-- 公章选择模块 -->
+      <div class="form-item">
+        <label class="label">选择公章</label>
+        <select id="stampSelect" onchange="loadCert()">
+          <option value="qixinggang">渝中区七星岗街道社区卫生服务中心</option>
+          <option value="chaotianmen">渝中区朝天门街道社区卫生服务中心</option>
+        </select>
+      </div>
+
+      <div class="form-item">
+        <label class="label">选择员工</label>
+        <select id="certSelect" onchange="loadCert()"></select>
+      </div>
+      <div class="form-item">
+        <label class="label">上传自定义二维码（可选）</label>
+        <input type="file" id="uploadCertQR" accept="image/*" onchange="uploadCertQR()">
+      </div>
+      <div style="text-align:center;margin-top:10px;">
+        <button class="btn btn-primary" onclick="window.print()">打印健康证</button>
+      </div>
+    </div>
+    <div id="certContainer" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- ====================== 功能区3：体检报告（二维码转换器） ====================== -->
+  <div id="page3" class="page">
+    <div class="card">
+      <div class="section-title">📄 体检报告</div>
+      <div class="form-item">
+        <label class="label">选择员工</label>
+        <select id="reportSelect" onchange="showReport()"></select>
+      </div>
+      <div class="grid grid-2" style="margin-top:12px;">
+        <div class="form-item"><label class="label">姓名</label><input id="rName" readonly></div>
+        <div class="form-item"><label class="label">性别</label><input id="rGender" readonly></div>
+        <div class="form-item"><label class="label">岁数</label><input id="rAge" readonly></div>
+        <div class="form-item"><label class="label">身份证号</label><input id="rId" readonly></div>
+        <div class="form-item"><label class="label">类别</label><input id="rType" readonly></div>
+        <div class="form-item">
+          <label class="label">发证机构</label>
+          <select id="rOrg">
+            <option value="渝中区七星岗街道社区卫生服务中心">渝中区七星岗街道社区卫生服务中心</option>
+            <option value="渝中区朝天门街道社区卫生服务中心">渝中区朝天门街道社区卫生服务中心</option>
+          </select>
+        </div>
+        <div class="form-item"><label class="label">体检日期</label><input id="rDate" readonly></div>
+        <div class="form-item"><label class="label">状态</label><input id="rStatus" readonly></div>
+        <div class="form-item"><label class="label">体检编码</label><input id="rCode" readonly></div>
+      </div>
+
+      <!-- 体检报告中间可调节上传框 -->
+      <div class="report-upload-area">
+        <input type="file" id="reportCenterUpload" accept="image/*" onchange="uploadReportCenter()">
+        <div>拖拽右下角可调节大小</div>
+        <img id="reportCenterPreview" style="display:none;">
+      </div>
+
+      <!-- 体检报告二维码转换器 -->
+      <div class="report-qr-gen">
+        <div class="section-title">🔗 体检报告页面转二维码</div>
+        <input type="text" id="reportQrInput" placeholder="可自由编写内容/链接">
+        <button class="btn btn-primary" onclick="genReportQr()">生成二维码</button>
+        <img id="reportQrImg" style="display:none;">
+      </div>
+
+      <div style="text-align:center;margin-top:10px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="editReport()">编辑报告</button>
+        <button class="btn btn-success" onclick="genCertLinkQR()">生成健康证链接二维码</button>
+      </div>
+      <div id="reportQRBox" class="qr-box" style="margin-top:10px;"><div style="color:#999;">二维码区域</div></div>
+      <div style="text-align:center;margin-top:8px;">
+        <button class="btn btn-outline" onclick="downloadReportQR()" style="display:none;" id="downloadReportQRBtn">下载二维码</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================== 功能区4：二维码生成器 ====================== -->
+  <div id="page4" class="page">
+    <div class="card">
+      <div class="section-title">📱 二维码生成器</div>
+      <div class="form-item">
+        <label class="label">选择员工（自动生成健康证链接）</label>
+        <select id="qrStaffSelect"></select>
+      </div>
+      <div class="form-item">
+        <label class="label">或上传健康证图片生成二维码</label>
+        <input type="file" id="certUpload" accept="image/*">
+      </div>
+      <div class="form-item">
+        <label class="label">或手动输入内容</label>
+        <textarea id="qrContent" rows="3" placeholder="请输入要生成二维码的内容"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="genStaffCertQR()">生成员工健康证二维码</button>
+        <button class="btn btn-primary" onclick="genUploadCertQR()">生成上传图片二维码</button>
+        <button class="btn btn-primary" onclick="genCustomQR()">生成自定义二维码</button>
+      </div>
+      <div class="qr-box" id="qrBox" style="margin-top:10px;"><div style="color:#999;">点击生成</div></div>
+      <div class="qr-actions" style="margin-top:8px;">
+        <button class="btn btn-outline" onclick="downloadQR()">下载二维码</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 员工编辑弹窗 -->
+<div class="modal no-print" id="staffModal" style="position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:100;">
+  <div class="card" style="width:min(600px,96%);">
+    <div class="section-title" id="staffTitle">新增员工</div>
+    <div class="grid grid-2">
+      <div class="form-item">
+        <label class="label">照片</label>
+        <div id="photoPreview" style="width:100px;height:130px;border:1px dashed #ccc;display:flex;align-items:center;justify-content:center;color:#999;cursor:pointer;">点击上传</div>
+        <input type="file" id="photoUpload" accept="image/*" style="display:none" onchange="previewPhoto()">
+      </div>
+      <div class="form-item"><label class="label">姓名</label><input id="sName"></div>
+      <div class="form-item"><label class="label">性别</label><select id="sGender"><option>男</option><option>女</option></select></div>
+      <div class="form-item"><label class="label">岁数</label><input id="sAge"></div>
+      <div class="form-item"><label class="label">身份证号</label><input id="sId"></div>
+      <div class="form-item"><label class="label">类别</label><select id="sType"><option>餐饮服务</option><option>食品经营</option><option>公共场所</option></select></div>
+      <div class="form-item">
+        <label class="label">发证机构</label>
+        <select id="sOrg">
+          <option value="渝中区七星岗街道社区卫生服务中心">渝中区七星岗街道社区卫生服务中心</option>
+          <option value="渝中区朝天门街道社区卫生服务中心">渝中区朝天门街道社区卫生服务中心</option>
+        </select>
+      </div>
+      <div class="form-item"><label class="label">体检日期</label><input type="date" id="sDate"></div>
+      <div class="form-item"><label class="label">状态</label><select id="sStatus"><option>有效</option><option>即将到期</option><option>已过期</option></select></div>
+      <div class="form-item"><label class="label">体检编码</label><input id="sCode"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:10px;">
+      <button class="btn btn-primary" onclick="saveStaff()">保存</button>
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let staff = JSON.parse(localStorage.getItem('healthStaff')) || [];
+let curIdx = -1;
+let curPhoto = '';
+let qrCanvas = null;
+let reportQRCanvas = null;
+let uploadedQR = '';
+let pageUrl = window.location.href;
+
+// 切换功能区
+function switchPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// 初始化
+window.onload = () => {
+  renderStaff();
+  initCertSelect();
+  initReportSelect();
+  initQRStaffSelect();
+  document.getElementById('reportQrInput').value = pageUrl;
+};
+
+// ====================== 员工管理 ======================
+function renderStaff() {
+  let t = document.getElementById('staffTable');
+  t.innerHTML = '';
+  staff.forEach((s, i) => {
+    t.innerHTML += `
+      <tr>
+        <td>${s.name}</td>
+        <td>${s.gender}</td>
+        <td>${s.age}</td>
+        <td>${s.id}</td>
+        <td>${s.type}</td>
+        <td>${s.code}</td>
+        <td><span class="tag ${s.status==='有效'?'tag-success':s.status==='即将到期'?'tag-wait':'tag-expire'}">${s.status}</span></td>
+        <td>
+          <button class="btn btn-text" onclick="editStaff(${i})" style="padding:4px 8px;font-size:12px">编辑</button>
+          <button class="btn btn-text" onclick="delStaff(${i})" style="padding:4px 8px;font-size:12px">删除</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+// ====================== 健康证卡片（公章可选择） ======================
+function initCertSelect() {
+  let sel = document.getElementById('certSelect');
+  sel.innerHTML = '<option value="">请选择员工</option>';
+  staff.forEach((s, i) => {
+    sel.innerHTML += `<option value="${i}">${s.name} - ${s.code}</option>`;
+  });
+}
+
+function loadCert() {
+  let i = document.getElementById('certSelect').value;
+  if (i === '') return;
+  let s = staff[i];
+  let certUrl = pageUrl + '?id=' + i;
+  
+  // 获取选择的公章
+  let stampType = document.getElementById('stampSelect').value;
+  let stampTopText = stampType === 'qixinggang' 
+    ? '渝中区七星岗街道社区卫生服务中心' 
+    : '渝中区朝天门街道社区卫生服务中心';
+  
+  let card = `
+    <div class="cert-card">
+      <div class="cert-title">从业人员健康证明</div>
+      <div class="cert-grid">
+        <div>姓名</div><div>${s.name}</div>
+        <div>性别</div><div>${s.gender}</div>
+        <div>岁数</div><div>${s.age}</div>
+        <div>身份证</div><div>${s.id}</div>
+        <div>类别</div><div>${s.type}</div>
+        <div>体检机构</div><div>${s.org}</div>
+        <div>体检日期</div><div>${s.date}</div>
+        <div>状态</div><div>${s.status}</div>
+        <div>体检编码</div><div>${s.code}</div>
+      </div>
+      ${s.photo ? `<img src="${s.photo}" class="cert-photo">` : ''}
+      <img class="cert-qr" id="cardQR" src="${uploadedQR || ''}">
+      
+      <!-- 公章 -->
+      <div class="cert-stamp">
+        <div class="stamp-inner">
+          <div class="stamp-top">${stampTopText}</div>
+          <div class="stamp-star">★</div>
+          <div class="stamp-middle">从业人员预防性</div>
+          <div class="stamp-bottom">健康体检专用章</div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('certContainer').innerHTML = card;
+
+  if (!uploadedQR) {
+    QRCode.toDataURL(certUrl, { width: 180 }, (err, url) => {
+      if (!err) document.getElementById('cardQR').src = url;
+    });
+  }
+}
+
+function uploadCertQR() {
+  let file = document.getElementById('uploadCertQR').files[0];
+  if (!file) return;
+  let reader = new FileReader();
+  reader.onload = e => {
+    uploadedQR = e.target.result;
+    loadCert();
+  };
+  reader.readAsDataURL(file);
+}
+
+// ====================== 体检报告（二维码转换器） ======================
+function initReportSelect() {
+  let sel = document.getElementById('reportSelect');
+  sel.innerHTML = '<option value="">请选择员工</option>';
+  staff.forEach((s, i) => {
+    sel.innerHTML += `<option value="${i}">${s.name} - ${s.code}</option>`;
+  });
+}
+
+function showReport() {
+  let i = document.getElementById('reportSelect').value;
+  if (i === '') return;
+  let s = staff[i];
+  document.getElementById('rName').value = s.name;
+  document.getElementById('rGender').value = s.gender;
+  document.getElementById('rAge').value = s.age;
+  document.getElementById('rId').value = s.id;
+  document.getElementById('rType').value = s.type;
+  document.getElementById('rOrg').value = s.org || '渝中区七星岗街道社区卫生服务中心';
+  document.getElementById('rDate').value = s.date;
+  document.getElementById('rStatus').value = s.status;
+  document.getElementById('rCode').value = s.code;
+
+  let img = document.getElementById('reportCenterPreview');
+  if (s.reportPhoto) {
+    img.src = s.reportPhoto;
+    img.style.display = 'block';
+  } else {
+    img.style.display = 'none';
+  }
+}
+
+function uploadReportCenter() {
+  let file = document.getElementById('reportCenterUpload').files[0];
+  if (!file) return;
+  let reader = new FileReader();
+  reader.onload = e => {
+    let url = e.target.result;
+    let img = document.getElementById('reportCenterPreview');
+    img.src = url;
+    img.style.display = 'block';
+    let i = document.getElementById('reportSelect').value;
+    if (i !== '') {
+      staff[i].reportPhoto = url;
+      localStorage.setItem('healthStaff', JSON.stringify(staff));
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// 体检报告页面转二维码
+function genReportQr() {
+  let content = document.getElementById('reportQrInput').value || pageUrl;
+  QRCode.toDataURL(content, { width: 200 }, (err, url) => {
+    if (!err) {
+      let img = document.getElementById('reportQrImg');
+      img.src = url;
+      img.style.display = 'block';
+    }
+  });
+}
+
+function genCertLinkQR() {
+  let i = document.getElementById('reportSelect').value;
+  if (i === '') return alert('请先选择员工');
+  let url = pageUrl + '?id=' + i;
+  let box = document.getElementById('reportQRBox');
+  box.innerHTML = '';
+  reportQRCanvas = document.createElement('canvas');
+  reportQRCanvas.width = 240;
+  reportQRCanvas.height = 240;
+  box.appendChild(reportQRCanvas);
+  QRCode.toCanvas(reportQRCanvas, url, { width: 220 }, err => {
+    if (err) alert('生成失败');
+  });
+  document.getElementById('downloadReportQRBtn').style.display = 'inline-block';
+}
+
+function downloadReportQR() {
+  if (!reportQRCanvas) return alert('请先生成二维码');
+  let link = document.createElement('a');
+  link.download = '健康证链接二维码.png';
+  link.href = reportQRCanvas.toDataURL('image/png');
+  link.click();
+}
+
+// ====================== 二维码生成器 ======================
+function initQRStaffSelect() {
+  let sel = document.getElementById('qrStaffSelect');
+  sel.innerHTML = '<option value="">请选择员工</option>';
+  staff.forEach((s, i) => {
+    sel.innerHTML += `<option value="${i}">${s.name} - ${s.code}</option>`;
+  });
+}
+
+function genStaffCertQR() {
+  let i = document.getElementById('qrStaffSelect').value;
+  if (i === '') return alert('请选择员工');
+  let url = pageUrl + '?id=' + i;
+  genQR(url);
+}
+
+function genUploadCertQR() {
+  let file = document.getElementById('certUpload').files[0];
+  if (!file) return alert('请先上传图片');
+  let reader = new FileReader();
+  reader.onload = e => genQR(e.target.result);
+  reader.readAsDataURL(file);
+}
+
+function genCustomQR() {
+  let content = document.getElementById('qrContent').value.trim();
+  if (!content) return alert('请输入内容');
+  genQR(content);
+}
+
+function genQR(content) {
+  let box = document.getElementById('qrBox');
+  box.innerHTML = '';
+  qrCanvas = document.createElement('canvas');
+  qrCanvas.width = 260;
+  qrCanvas.height = 260;
+  box.appendChild(qrCanvas);
+  QRCode.toCanvas(qrCanvas, content, { width: 240 }, err => {
+    if (err) alert('生成失败');
+  });
+}
+
+function downloadQR() {
+  if (!qrCanvas) return alert('请先生成二维码');
+  let link = document.createElement('a');
+  link.download = '二维码.png';
+  link.href = qrCanvas.toDataURL('image/png');
+  link.click();
+}
+
+// ====================== 员工编辑 ======================
+function openStaff() {
+  curIdx = -1;
+  curPhoto = '';
+  document.getElementById('staffTitle').textContent = '新增员工';
+  document.getElementById('sName').value = '';
+  document.getElementById('sGender').value = '男';
+  document.getElementById('sAge').value = '';
+  document.getElementById('sId').value = '';
+  document.getElementById('sType').value = '餐饮服务';
+  document.getElementById('sOrg').value = '渝中区七星岗街道社区卫生服务中心';
+  document.getElementById('sDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('sStatus').value = '有效';
+  document.getElementById('sCode').value = 'TJ' + Date.now().toString().slice(-8);
+  document.getElementById('photoPreview').innerHTML = '点击上传';
+  document.getElementById('staffModal').style.display = 'flex';
+}
+
+function editStaff(i) {
+  curIdx = i;
+  let s = staff[i];
+  curPhoto = s.photo || '';
+  document.getElementById('staffTitle').textContent = '编辑员工';
+  document.getElementById('sName').value = s.name;
+  document.getElementById('sGender').value = s.gender;
+  document.getElementById('sAge').value = s.age;
+  document.getElementById('sId').value = s.id;
+  document.getElementById('sType').value = s.type;
+  document.getElementById('sOrg').value = s.org || '渝中区七星岗街道社区卫生服务中心';
+  document.getElementById('sDate').value = s.date;
+  document.getElementById('sStatus').value = s.status;
+  document.getElementById('sCode').value = s.code;
+  document.getElementById('photoPreview').innerHTML = curPhoto ? `<img src="${curPhoto}" style="width:100%;height:100%;object-fit:cover;">` : '点击上传';
+  document.getElementById('staffModal').style.display = 'flex';
+}
+
+function previewPhoto() {
+  let file = document.getElementById('photoUpload').files[0];
+  if (!file) return;
+  let reader = new FileReader();
+  reader.onload = e => {
+    curPhoto = e.target.result;
+    document.getElementById('photoPreview').innerHTML = `<img src="${curPhoto}" style="width:100%;height:100%;object-fit:cover;">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveStaff() {
+  let data = {
+    name: document.getElementById('sName').value,
+    gender: document.getElementById('sGender').value,
+    age: document.getElementById('sAge').value,
+    id: document.getElementById('sId').value,
+    type: document.getElementById('sType').value,
+    org: document.getElementById('sOrg').value,
+    date: document.getElementById('sDate').value,
+    status: document.getElementById('sStatus').value,
+    code: document.getElementById('sCode').value,
+    photo: curPhoto,
+    reportPhoto: ''
+  };
+  if (!data.name || !data.id) return alert('姓名和身份证不能为空');
+  if (curIdx >= 0) {
+    data.reportPhoto = staff[curIdx].reportPhoto || '';
+    staff[curIdx] = data;
+  } else {
+    staff.push(data);
+  }
+  localStorage.setItem('healthStaff', JSON.stringify(staff));
+  closeModal();
+  renderStaff();
+  initCertSelect();
+  initReportSelect();
+  initQRStaffSelect();
+}
+
+function delStaff(i) {
+  if (confirm('确定删除？')) {
+    staff.splice(i, 1);
+    localStorage.setItem('healthStaff', JSON.stringify(staff));
+    renderStaff();
+    initCertSelect();
+    initReportSelect();
+    initQRStaffSelect();
+  }
+}
+
+function closeModal() {
+  document.getElementById('staffModal').style.display = 'none';
+}
+
+function editReport() {
+  let i = document.getElementById('reportSelect').value;
+  if (i === '') return alert('请选择员工');
+  editStaff(i);
+}
+
+function exportStaff() {
+  let data = [['姓名','性别','岁数','身份证号','类别','发证机构','体检日期','状态','体检编码']];
+  staff.forEach(s => {
+    data.push([s.name,s.gender,s.age,s.id,s.type,s.org,s.date,s.status,s.code]);
+  });
+  let wb = XLSX.utils.book_new();
+  let ws = XLSX.utils.aoa_to_sheet(data);
+  XLSX.utils.book_append_sheet(wb, ws, '员工列表');
+  XLSX.writeFile(wb, '员工列表.xlsx');
+}
+
+function importStaff() {
+  let ipt = document.createElement('input');
+  ipt.type = 'file';
+  ipt.accept = '.xlsx';
+  ipt.onchange = e => {
+    let f = e.target.files[0];
+    if (!f) return;
+    let reader = new FileReader();
+    reader.onload = e => {
+      let wb = XLSX.read(e.target.result, { type: 'binary' });
+      let ws = wb.Sheets[wb.SheetNames[0]];
+      let arr = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      arr.shift();
+      let list = [];
+      arr.forEach(x => {
+        if (x[0] && x[3]) {
+          list.push({
+            name: x[0], gender: x[1] || '', age: x[2] || '', id: x[3],
+            type: x[4] || '', org: x[5] || '渝中区七星岗街道社区卫生服务中心',
+            date: x[6] || '', status: x[7] || '有效', code: x[8] || 'TJ' + Date.now().toString().slice(-8),
+            photo: '', reportPhoto: ''
+          });
+        }
+      });
+      staff = list;
+      localStorage.setItem('healthStaff', JSON.stringify(staff));
+      renderStaff();
+      initCertSelect();
+      initReportSelect();
+      initQRStaffSelect();
+      alert('导入成功');
+    };
+    reader.readAsBinaryString(f);
+  };
+  ipt.click();
+}
+</script>
+</body>
+</html>
